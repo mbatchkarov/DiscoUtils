@@ -87,7 +87,9 @@ def run_and_log_output(cmd_string, *args, **kwargs):
     logging.info('Running %s', c)
     out = iterpipes.run(c)
     for line in out:
+        # print(line)
         logging.info(line)
+        yield line
 
 
 def run_byblo(conf_file):
