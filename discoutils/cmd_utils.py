@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import sys
 
 if sys.version_info.major == 3:
@@ -84,6 +85,18 @@ def parse_byblo_conf_file(path):
     return args
 
 
+def get_byblo_out_prefix(conf_file):
+    opts, _ = parse_byblo_conf_file(conf_file)
+    return os.path.join(opts.output, os.path.basename(opts.input))
+
+
+def touch_byblo_input_file(conf_file):
+    opts, _ = parse_byblo_conf_file(conf_file)
+    if not os.path.exists(opts.input):
+        with open(opts.input, 'w') as inf:
+            pass
+
+
 def run_and_log_output(cmd_string, *args, **kwargs):
     """
     Runs a command with iterpipes and logs the output
@@ -92,12 +105,22 @@ def run_and_log_output(cmd_string, *args, **kwargs):
     logging.info('Running %s', c)
     out = iterpipes.run(c)
     for line in out:
-        # print(line)
         logging.info(line)
         yield line
 
 
-def run_byblo(conf_file):
+def run_byblo(conf_file, touch_input_file=False):
+    """
+    Runs Byblo with the specified configuration file
+    :param conf_file: the Byblo conf file
+    :param touch_input_file: if true, the input file specified in the conf file
+    will be created. This is useful when only running the latter 3 stages of Byblo,
+    that do no actually need an input file containing features (but need an events,
+    entries and features files). Byblo still checks if the input file exists and
+    complains
+    """
+    if touch_input_file:
+        touch_byblo_input_file(conf_file)
     run_and_log_output('./byblo.sh @{}'.format(conf_file))
 
 
@@ -107,15 +130,12 @@ def unindex_all_byblo_vectors(outfile_name):
 
     :param outfile_name: the name of the output file used when these vector files were produced
     """
-    run_and_log_output(
-        './tools.sh unindex-events -i {0}.events.filtered -o {0}.events.filtered.strings '
-        '-Xe {0}.entry-index -Xf {0}.feature-index -et JDBM'.format(outfile_name))
-    run_and_log_output(
-        './tools.sh unindex-features -et JDBM  -i {0}.features.filtered  '
-        '-o {0}.features.filtered.strings  -Xf {0}.feature-index -Ef'.format(outfile_name))
-    run_and_log_output(
-        './tools.sh unindex-entries -et JDBM  -i {0}.entries.filtered  '
-        '-o {0}.entries.filtered.strings  -Xe {0}.entry-index -Ee'.format(outfile_name))
+    run_and_log_output('./tools.sh unindex-events -i {0}.events.filtered -o {0}.events.filtered.strings '
+                       '-Xe {0}.entry-index -Xf {0}.feature-index -et JDBM'.format(outfile_name))
+    run_and_log_output('./tools.sh unindex-features -et JDBM  -i {0}.features.filtered  '
+                       '-o {0}.features.filtered.strings  -Xf {0}.feature-index -Ef'.format(outfile_name))
+    run_and_log_output('./tools.sh unindex-entries -et JDBM  -i {0}.entries.filtered  '
+                       '-o {0}.entries.filtered.strings  -Xe {0}.entry-index -Ee'.format(outfile_name))
 
     # remove the __FILTERED__ feature, entry and event so that it doesn't mess with cosine similarity
     for file_type in ['entries', 'features']:
