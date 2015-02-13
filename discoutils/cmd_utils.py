@@ -1,6 +1,11 @@
 import argparse
 import logging
-import iterpipes3 as iterpipes
+import sys
+
+if sys.version_info.major == 3:
+    import iterpipes3 as iterpipes
+else:
+    import iterpipes
 
 
 def set_stage_in_byblo_conf_file(filename, stage_id):
@@ -12,9 +17,9 @@ def set_stage_in_byblo_conf_file(filename, stage_id):
     with open(filename) as inf:
         lines = [x.strip() for x in inf.readlines()]
     stages = {
-        0: '', # run the entire Byblo pipeline
-        1: ['--stages', 'enumerate,count,filter'], # run the first part only
-        2: ['--stages', 'allpairs,knn,unenumerate'] # run the second part only
+        0: '',  # run the entire Byblo pipeline
+        1: ['--stages', 'enumerate,count,filter'],  # run the first part only
+        2: ['--stages', 'allpairs,knn,unenumerate']  # run the second part only
     }
 
     # remove the current stages setting, may be multiple
