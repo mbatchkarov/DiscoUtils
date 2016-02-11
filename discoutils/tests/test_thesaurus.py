@@ -12,7 +12,7 @@ from numpy.testing import assert_array_equal, assert_array_almost_equal
 from operator import itemgetter
 from scipy.sparse import issparse
 from discoutils.thesaurus_loader import Thesaurus, Vectors
-from discoutils.collections_utils import walk_nonoverlapping_pairs
+from discoutils.collections_utils import walk_nonoverlapping_pairs, walk_overlapping_pairs
 
 __author__ = 'mmb28'
 
@@ -144,13 +144,12 @@ def test_nearest_neighbours_too_few_neighbours(vectors_c):
 
 
 def test_get_nearest_neigh_compare_to_byblo(vectors_c):
-    pytest.skip('Byblo uses cosine sim, and we use L2 for speed (KD Trees rule)')
     thes = 'discoutils/tests/resources/thesaurus_exp0-0c/test.sims.neighbours.strings'
     if not os.path.exists(thes):
         pytest.skip("The required resources for this test are missing. Please add them.")
     else:
         byblo_thes = Thesaurus.from_tsv(thes)
-        vectors_c.init_sims(n_neighbors=4)
+        vectors_c.init_sims(n_neighbors=4, nn_metric='cosine')
 
         assert set(vectors_c.keys()) == set(byblo_thes.keys())
         for entry, byblo_neighbours in byblo_thes.items():
@@ -158,8 +157,16 @@ def test_get_nearest_neigh_compare_to_byblo(vectors_c):
 
             for ((word1, sim1), (word2, sim2)) in zip(my_neighbours, byblo_neighbours):
                 assert word1 == word2
-                assert abs(sim1 - sim2) < 1e-5
+                # byblo uses cosine similarity, which is 1 - cosine distance.
+                # check if the two sum to 1
+                assert abs(sim1 + sim2 - 1.) < 1e-5
 
+    # check if the distance to neighbour increases as we go down the list
+    for a, b in walk_overlapping_pairs([x[1] for x in my_neighbours]):
+        assert a <= b
+
+    for a, b in walk_overlapping_pairs([x[1] for x in byblo_neighbours]):
+        assert a >= b
 
 def test_nearest_neighbours_skipping(vectors_c):
     vectors_c.init_sims()
